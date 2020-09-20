@@ -16,7 +16,7 @@ import numpy as np
 wandb.init(project='test', dir=tempfile.gettempdir())
 print(
     f'Using cudnn version {torch.backends.cudnn.version()}, pytorch version {torch.__version__}')
-trainset = datasets.CIFAR100(
+trainset = datasets.CIFAR10(
     '~/data', True, transform=transforms.ToTensor(), download=True)
 
 # %%
@@ -31,7 +31,7 @@ train_loader = DataLoader(trainset, 1024, num_workers=os.cpu_count())
 print(f'Dataset attributes : {mean}, {std}')
 
 # %%
-trainset = datasets.CIFAR100('~/data', True, transform=transforms.Compose([
+trainset = datasets.CIFAR10('~/data', True, transform=transforms.Compose([
     transforms.RandomHorizontalFlip(),
     transforms.RandomRotation(5),
     transforms.ToTensor(),
@@ -43,13 +43,12 @@ train_loader = DataLoader(
 
 wandb.log({'augmented training images': [wandb.Image(i) for i in next(iter(train_loader))[0]]})
 
-validset = datasets.CIFAR100('~/data', False, transform=transforms.Compose([
+validset = datasets.CIFAR10('~/data', False, transform=transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize(mean, std)
 ]), download=True)
 
 valid_loader = DataLoader(validset, 1024, num_workers=os.cpu_count())
-
 # %%
 import torch
 import torch.nn as nn
@@ -81,6 +80,7 @@ class SomeNet(nn.Module):
         self.l=nn.Sequential(
             nn.Linear(73728, 2048),
             nn.ReLU(),
+            nn.Dropout(0.5),
             nn.Linear(2048, self.output_shape),
             nn.LogSoftmax(dim=1)
         )
@@ -88,22 +88,21 @@ class SomeNet(nn.Module):
     def forward(self, x):
         x=self.i(x)
         x=self.c(x)
-        x=x.view(x.shape[0],-1)
+        x=x.view(x.size(0),-1)
         x=self.l(x)
         return x
+
+criterion = nn.NLLLoss()
+_metrics_to_collect = {'loss':criterion, 'accuracy':metrics.accuracy}
+_train_metrics={k:AverageMeter(f'train_{k}') for k,v in _metrics_to_collect.items()}
+_valid_metrics={k:AverageMeter(f'valid_{k}') for k,v in _metrics_to_collect.items()}
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 model=nn.DataParallel(SomeNet()).to(device) if torch.cuda.device_count() > 1 else SomeNet().to(device) 
 
 optimizer = optim.Adam(model.parameters(), lr=0.001, amsgrad=True)
-lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=2, verbose=True)
+lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, verbose=True)
 # lr_scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=1e-8, max_lr=1e-2, cycle_momentum=False)
-criterion = nn.CrossEntropyLoss()
-
-train_loss=AverageMeter('train_loss')
-valid_loss=AverageMeter('valid_loss')
-train_acc =AverageMeter('train_acc')
-valid_acc =AverageMeter('valid_acc')
 
 epochs=100
 for e in range(0,epochs):
@@ -117,13 +116,16 @@ for e in range(0,epochs):
             predictions=model(i)
             losses=criterion(predictions, l)
             losses.backward()
-            train_acc.update(metrics.accuracy(predictions, l))
             optimizer.step()
-            train_loss.update(losses)
-            wandb.log({'train_loss':losses, 'train_acc':train_acc.avg})
-            progress.set_postfix_str(f'{train_loss} {train_acc}')
-        train_loss.commit()
-        train_acc.commit()
+            
+            for i,(k,v) in enumerate(_metrics_to_collect.items()):
+                _train_metrics[k].update(v(predictions, l))
+
+            log_dict={v.name:v.avg for v in _train_metrics.values()}
+            wandb.log(log_dict)
+            progress.set_postfix(log_dict)
+        for m in _train_metrics.values():
+            m.commit()
 
     model=model.eval()
     with tqdm(valid_loader, desc=f'[{e}/{epochs}] Valid') as progress, torch.no_grad():
@@ -131,12 +133,14 @@ for e in range(0,epochs):
             i, l = i.to(device), l.to(device)
             optimizer.zero_grad()
             predictions=model(i)
-            losses=criterion(predictions, l)
-            valid_acc.update(metrics.accuracy(predictions, l))
-            valid_loss.update(losses)
-            wandb.log({'valid_loss':losses})
-            progress.set_postfix_str(f'{valid_loss}')
-        valid_loss.commit()
-        valid_acc.commit()
+            
+            for i,(k,v) in enumerate(_metrics_to_collect.items()):
+                _valid_metrics[k].update(v(predictions, l))
+            
+            log_dict={v.name:v.avg for v in _valid_metrics.values()}
+            wandb.log(log_dict)
+            progress.set_postfix(log_dict)
+        for m in _valid_metrics.values():
+            m.commit()
     
-    lr_scheduler.step(valid_loss.avg)
+    lr_scheduler.step(_valid_metrics['loss'].avg)
