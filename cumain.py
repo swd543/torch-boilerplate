@@ -22,9 +22,6 @@ print(
     f'Using cudnn version {torch.backends.cudnn.version()}, pytorch version {torch.__version__}')
 trainset = datasets.CIFAR100(
     '~/data', True, transform=transforms.ToTensor(), download=True)
-
-# %%
-print(trainset[0][0])
 # %%
 wandb.log({'sample images': [wandb.Image(
     trainset[i][0], caption=trainset[i][1]) for i in range(32)]})
@@ -71,7 +68,7 @@ model=SomeNet(input_shape=trainset[0][0].shape, output_shape=len(trainset.classe
 model=nn.DataParallel(model).to(device) if torch.cuda.device_count() > 1 else model.to(device) 
 
 optimizer = optim.Adam(model.parameters(), lr=0.001, amsgrad=True)
-lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=2, verbose=True)
+lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=4, verbose=True)
 # lr_scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=1e-8, max_lr=1e-2, cycle_momentum=False)
 
 epochs=100
@@ -112,5 +109,4 @@ for e in range(epochs+1):
             progress.set_postfix(log_dict)
         for m in _valid_metrics.values():
             m.commit()
-    print(_valid_metrics['loss'].avgs[-1])        
     lr_scheduler.step(_valid_metrics['loss'].avgs[-1])

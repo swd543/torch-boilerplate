@@ -15,7 +15,8 @@ class SomeNet(nn.Module):
 
         self.i=nn.Sequential(
             nn.Conv2d(3, 16, 3, padding=1),
-            nn.ReLU()
+            nn.ReLU(),
+            nn.MaxPool2d(2)
         )
         self.c=nn.Sequential(
             nn.Conv2d(16, 32, 3),
@@ -24,13 +25,13 @@ class SomeNet(nn.Module):
             nn.ReLU(),
             nn.Conv2d(64, 128, 3),
             nn.ReLU(),
-            nn.BatchNorm2d(128),
+            # nn.BatchNorm2d(128),
             nn.Conv2d(128, 128, 3),
             nn.ReLU(),
-            # nn.BatchNorm2d(128),
+            nn.BatchNorm2d(128),
         )
         self.l=nn.Sequential(
-            nn.Linear(73728, 2048),
+            nn.Linear(8192, 2048),
             nn.ReLU(),
             nn.Dropout(0.5),
             nn.Linear(2048, self.output_shape),
@@ -41,9 +42,12 @@ class SomeNet(nn.Module):
         x=self.i(x)
         x=self.c(x)
         x=x.view(x.size(0),-1)
+        # print(x.shape)
         x=self.l(x)
         return x
 
 if __name__ == "__main__":
     model=SomeNet()
     print(model)
+    dummy=torch.rand((1,3,32,32))
+    print(model(dummy))
