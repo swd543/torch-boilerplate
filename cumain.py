@@ -34,7 +34,7 @@ print(f'Dataset attributes : {mean}, {std}')
 # %%
 trainset = datasets.CIFAR100('~/data', True, transform=transforms.Compose([
     transforms.RandomHorizontalFlip(),
-    transforms.RandomRotation(5),
+    transforms.RandomRotation(15),
     transforms.ToTensor(),
     transforms.Normalize(mean, std)
 ]), download=True)
@@ -66,6 +66,7 @@ _valid_metrics={k:AverageMeter(f'valid_{k}') for k in _metrics_to_collect.keys()
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 model=SomeNet(input_shape=trainset[0][0].shape, output_shape=len(trainset.classes))
 model=nn.DataParallel(model).to(device) if torch.cuda.device_count() > 1 else model.to(device) 
+print(model)
 
 optimizer = optim.Adam(model.parameters(), lr=0.001, amsgrad=True)
 lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=4, verbose=True)

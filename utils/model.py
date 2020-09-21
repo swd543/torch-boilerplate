@@ -6,6 +6,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
+def init_weights(m):
+    if type(m) == nn.Linear or type(m) == nn.Conv2d:
+        torch.nn.init.xavier_uniform_(m.weight)
+        m.bias.data.fill_(0.01)
+
 class SomeNet(nn.Module):
     """Some Information about SomeNet"""
     def __init__(self, input_shape=(32,32), output_shape=100):
@@ -23,20 +28,28 @@ class SomeNet(nn.Module):
             nn.ReLU(),
             nn.Conv2d(32, 64, 3),
             nn.ReLU(),
+            nn.BatchNorm2d(64),
+            nn.MaxPool2d(2),
             nn.Conv2d(64, 128, 3),
             nn.ReLU(),
-            # nn.BatchNorm2d(128),
             nn.Conv2d(128, 128, 3),
             nn.ReLU(),
             nn.BatchNorm2d(128),
         )
         self.l=nn.Sequential(
-            nn.Linear(8192, 2048),
+            nn.Linear(512, 512),
             nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(2048, self.output_shape),
+            # nn.Dropout(0.5),
+            nn.Linear(512, 512),
+            nn.ReLU(),
+            # nn.Dropout(0.5),
+            nn.Linear(512, 512),
+            nn.ReLU(),
+            # nn.Dropout(0.5),
+            nn.Linear(512, self.output_shape),
             nn.LogSoftmax(dim=1)
         )
+        self.apply(init_weights)
 
     def forward(self, x):
         x=self.i(x)
