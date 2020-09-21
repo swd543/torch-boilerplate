@@ -17,7 +17,7 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
 wandb.init(project='test', dir=tempfile.gettempdir())
-print(f'Using cudnn version {torch.backends.cudnn.version()}, pytorch version {torch.__version__}')
+print(f'Using cuda {torch.version.cuda}, cudnn version {torch.backends.cudnn.version()}, pytorch version {torch.__version__}')
 trainset = datasets.CIFAR100('~/data', True, transform=transforms.ToTensor(), download=True)
 # %%
 wandb.log({'sample images': [wandb.Image(trainset[i][0], caption=trainset[i][1]) for i in range(32)]})
