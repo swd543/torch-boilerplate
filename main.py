@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 # %%
-from torch.nn.modules.activation import LogSoftmax
 from utils.utils import calculate_mean_std, AverageMeter
 from utils import metrics
 import os
@@ -18,19 +17,14 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
 wandb.init(project='test', dir=tempfile.gettempdir())
-print(
-    f'Using cudnn version {torch.backends.cudnn.version()}, pytorch version {torch.__version__}')
-trainset = datasets.CIFAR100(
-    '~/data', True, transform=transforms.ToTensor(), download=True)
+print(f'Using cudnn version {torch.backends.cudnn.version()}, pytorch version {torch.__version__}')
+trainset = datasets.CIFAR100('~/data', True, transform=transforms.ToTensor(), download=True)
 # %%
-wandb.log({'sample images': [wandb.Image(
-    trainset[i][0], caption=trainset[i][1]) for i in range(32)]})
-
+wandb.log({'sample images': [wandb.Image(trainset[i][0], caption=trainset[i][1]) for i in range(32)]})
 # %%
 train_loader = DataLoader(trainset, 1024, num_workers=os.cpu_count())
 [mean, std] = calculate_mean_std(train_loader)
 print(f'Dataset attributes : {mean}, {std}')
-
 # %%
 trainset = datasets.CIFAR100('~/data', True, transform=transforms.Compose([
     transforms.RandomHorizontalFlip(),
@@ -39,8 +33,7 @@ trainset = datasets.CIFAR100('~/data', True, transform=transforms.Compose([
     transforms.Normalize(mean, std)
 ]), download=True)
 
-train_loader = DataLoader(
-    trainset, 1024, num_workers=os.cpu_count(), shuffle=True)
+train_loader = DataLoader(trainset, 1024, num_workers=os.cpu_count(), shuffle=True)
 
 wandb.log({'augmented training images': [wandb.Image(i) for i in next(iter(train_loader))[0]]})
 

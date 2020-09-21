@@ -4,7 +4,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
 
 def init_weights(m):
     if type(m) == nn.Linear or type(m) == nn.Conv2d:
@@ -39,13 +38,13 @@ class SomeNet(nn.Module):
         self.l=nn.Sequential(
             nn.Linear(512, 512),
             nn.ReLU(),
-            # nn.Dropout(0.5),
+            nn.Dropout(0.5),
             nn.Linear(512, 512),
             nn.ReLU(),
-            # nn.Dropout(0.5),
+            nn.Dropout(0.5),
             nn.Linear(512, 512),
             nn.ReLU(),
-            # nn.Dropout(0.5),
+            nn.Dropout(0.5),
             nn.Linear(512, self.output_shape),
             nn.LogSoftmax(dim=1)
         )
